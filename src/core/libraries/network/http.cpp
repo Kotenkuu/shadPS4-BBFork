@@ -25,6 +25,17 @@ std::string ReplaceHost(std::string url, const std::string& new_host, bool force
     std::string separator = "://";
     u64 protocol_pos = url.find(separator);
 
+    // The override may be a hostname or a full URL. A scheme in the override
+    // takes precedence; otherwise keep the original behavior and use HTTP.
+    const u64 override_protocol_pos = new_host.find(separator);
+    const bool override_has_scheme = override_protocol_pos != std::string::npos;
+    const std::string override_scheme = override_has_scheme
+                                            ? new_host.substr(0, override_protocol_pos)
+                                            : std::string{};
+    const std::string override_host = override_has_scheme
+                                          ? new_host.substr(override_protocol_pos + separator.length())
+                                          : new_host;
+
     u64 host_start = 0;
 
     if (protocol_pos != std::string::npos) {
@@ -36,15 +47,13 @@ std::string ReplaceHost(std::string url, const std::string& new_host, bool force
         host_end = url.length();
     }
 
-    url.replace(host_start, host_end - host_start, new_host);
+    url.replace(host_start, host_end - host_start, override_host);
 
     if (force_http) {
         if (protocol_pos != std::string::npos) {
-
-            url.replace(0, protocol_pos, "http");
+            url.replace(0, protocol_pos, override_has_scheme ? override_scheme : "http");
         } else {
-
-            url.insert(0, "http://");
+            url.insert(0, (override_has_scheme ? override_scheme : "http") + separator);
         }
     }
 
